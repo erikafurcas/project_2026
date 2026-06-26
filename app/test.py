@@ -1,4 +1,4 @@
-"""Integration tests for the Event Manager API.
+/"""Integration tests for the Event Manager API.
 
 Tests verify:
 - All required and optional APIs (events, users, registrations)
