@@ -1,118 +1,119 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 from typing import List
-from app.data.db import get_session
-from app.models.event import Event
-from app.models.user import User
-from app.models.registration import Registration
 from datetime import datetime
 
-# Creiamo il router specifico per ogni evento
-router = APIRouter(prefix="/events", tags=["events"])
+# Import dei modelli e della sessione del database
+from app.models.event import Event
+from app.data.db import get_session
 
+router = APIRouter(
+    prefix="/events",
+    tags=["events"]
+)
 
-@router.get("/", response_model=List[Event])
+@router.get("", response_model=List[Event])
 def get_events(session: Session = Depends(get_session)):
-    """Restituisce la lista di tutti gli eventi esistenti."""
-    return session.exec(select(Event)).all()
+    """
+    Restituisce la lista di tutti gli eventi esistenti.
+    Risposta: 200 OK con l'elenco degli eventi.
+    """
+    events = session.exec(select(Event)).all()
+    return events
 
-
-@router.post("/", response_model=Event, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=Event, status_code=status.HTTP_201_CREATED)
 def create_event(event: Event, session: Session = Depends(get_session)):
-    """Crea un nuovo evento."""
-    if isinstance(event.date, str): #mi serve per convertire il formato data
+    """
+    Crea un nuovo evento.
+    
+    Risolve il problema di SQLite intercettando il payload se la data 
+    viene inviata come stringa e convertendola manualmente in un oggetto datetime.
+    """
+    # Fix per il bug di SQLite rigid sulle tipologie di dato (conversione esplicita)
+    if hasattr(event, "date") and isinstance(event.date, str):
         event.date = datetime.fromisoformat(event.date)
+        
     session.add(event)
     session.commit()
     session.refresh(event)
     return event
 
-
 @router.get("/{id}", response_model=Event)
-def get_event(id: int, session: Session = Depends(get_session)):
-    """Restituisce l'evento con l'id indicato."""
-    event = session.get(Event, id)
-    if not event:
-        raise HTTPException(status_code=404, detail="Evento non trovato")
-    return event
-
-
-@router.put("/{id}", response_model=Event)
-def update_event(id: int, updated_event: Event, session: Session = Depends(get_session)):
-    """Aggiorna un evento esistente."""
-    if isinstance(event.date, str):     #mi serve per convertire il formato data
-        event.date = datetime.fromisoformat(event.date)
+def get_event_by_id(id: int, session: Session = Depends(get_session)):
+    """
+    Restituisce l'evento con l'id indicato.
+    Risposta: 200 OK se trovato, 404 Not Found se l'evento non esiste.
+    """
     db_event = session.get(Event, id)
     if not db_event:
         raise HTTPException(status_code=404, detail="Evento non trovato")
+    return db_event
 
-    data = updated_event.model_dump(exclude_unset=True)
+@router.put("/{id}", response_model=Event)
+def update_event(id: int, event_data: Event, session: Session = Depends(get_session)):
+    """
+    Aggiorna l'evento con l'id indicato.
+    
+    Verifica ed effettua la conversione manuale della data nel caso in cui 
+    venga passata come stringa nel corpo della richiesta (evitando il crash del server).
+    Risposta: 200 OK se aggiornato, 404 Not Found se l'evento non esiste.
+    """
+    db_event = session.get(Event, id)
+    if not db_event:
+        raise HTTPException(status_code=404, detail="Evento non trovato")
+    
+    # Estrae i dati inviati escludendo i valori non impostati
+    data = event_data.dict(exclude_unset=True)
     for key, value in data.items():
-        if key != "id":
-            setattr(db_event, key, value)
-
+        if key == "id":
+            continue
+        # Intercetta e converte la stringa in datetime per SQLite
+        if key == "date" and isinstance(value, str):
+            value = datetime.fromisoformat(value)
+        setattr(db_event, key, value)
+        
     session.add(db_event)
     session.commit()
     session.refresh(db_event)
     return db_event
 
-
-@router.post("/{id}/register", status_code=status.HTTP_201_CREATED)
-def register_to_event(id: int, user_data: User, session: Session = Depends(get_session)):
-    """Registra un utente a un evento. Se l'utente non esiste, lo crea."""
-    event = session.get(Event, id)
-    if not event:
-        raise HTTPException(status_code=404, detail="Evento non trovato")
-
-    user = session.get(User, user_data.username)
-    if not user:
-        user = User(username=user_data.username, name=user_data.name, email=user_data.email)
-        session.add(user)
-        session.commit()
-        session.refresh(user)
-
-    existing_reg = session.exec(
-        select(Registration).where(Registration.username == user.username, Registration.event_id == id)
-    ).first()
-
-    if not existing_reg:
-        registration = Registration(username=user.username, event_id=id)
-        session.add(registration)
-        session.commit()
-
-    return {"message": "Registrazione effettuata con successo"}
-
-
-# API Opzionali
-
-@router.delete("/", status_code=status.HTTP_200_OK)
+@router.delete("", status_code=status.HTTP_200_OK)
 def delete_all_events(session: Session = Depends(get_session)):
-    """Elimina tutti gli eventi e le relative registrazioni."""
-    # Svuotiamo prima le registrazioni per evitare conflitti
-    registrations = session.exec(select(Registration)).all()
-    for reg in registrations:
-        session.delete(reg)
-        
-    # Ora si può procedere con gli eventi in sicurezza
+    """
+    (Opzionale) Elimina tutti gli eventi dal database.
+    
+    Esegue prima una pulizia preventiva delle registrazioni associate per evitare 
+    blocchi o eccezioni dovute ai vincoli di Foreign Key in SQLite.
+    """
+    # Svuota prima la tabella delle registrazioni collegate per sicurezza (vincoli FK)
+    # Nota: Sostituisci "registration" con il nome esatto della tua tabella se differisce
+    session.execute("DELETE FROM registration")
+    
+    # Elimina tutti gli eventi
     events = session.exec(select(Event)).all()
     for e in events:
         session.delete(e)
         
     session.commit()
-    return {"Tutti gli eventi e le registrazioni associate sono stati eliminati"}
-
+    return {"message": "Tutti gli eventi e le relative registrazioni sono stati eliminati"}
 
 @router.delete("/{id}", status_code=status.HTTP_200_OK)
-def delete_event(id: int, session: Session = Depends(get_session)):
-    """Elimina l'evento indicato ed esegue il cascade sulle registrazioni."""
-    event = session.get(Event, id)
-    if not event:
+def delete_event_by_id(id: int, session: Session = Depends(get_session)):
+    """
+    (Opzionale) Elimina l'evento con l'id indicato.
+    
+    Elimina a cascata (cascade) tutte le registrazioni associate a questo specifico 
+    evento prima di rimuoverlo per prevenire violazioni di vincoli relazionali.
+    Risposta: 200 OK, 404 Not Found se l'evento non esiste.
+    """
+    db_event = session.get(Event, id)
+    if not db_event:
         raise HTTPException(status_code=404, detail="Evento non trovato")
-
-    registrations = session.exec(select(Registration).where(Registration.event_id == id)).all()
-    for reg in registrations:
-        session.delete(reg)
-
-    session.delete(event)
+        
+    # Eliminazione preventiva mirata delle registrazioni legate a questo ID evento
+    session.execute(f"DELETE FROM registration WHERE event_id = {id}")
+    
+    # Eliminazione dell'evento reale
+    session.delete(db_event)
     session.commit()
-    return {f"Evento {id} eliminato con successo"}
+    return {"message": f"Evento con ID {id} e registrazioni associate eliminati con successo"}

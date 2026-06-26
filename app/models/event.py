@@ -1,11 +1,20 @@
-from sqlmodel import SQLModel, Field
 from datetime import datetime
-from typing import Optional
+from pydantic import BaseModel, ConfigDict, StrictStr
+from sqlmodel import SQLModel, Field
 
+# Modello RIGIDO per l'input delle API
+class EventCreate(BaseModel):
+    model_config = ConfigDict(strict=True)  # Forza il lancio del 422 in caso di tipi errati
+    
+    title: StrictStr
+    description: StrictStr
+    date: datetime  # Pydantic respingerà autonomamente stringhe invalide come "not-a-date"
+    location: StrictStr
+
+# Modello per la Tabella del Database
 class Event(SQLModel, table=True):
-
-    id: Optional[int] = Field(default=None, primary_key=True) # ID assegnato automaticamente
+    id: int | None = Field(default=None, primary_key=True)
     title: str
     description: str
-    date: datetime # Usiamo il tipo datetime di Python
+    date: datetime
     location: str
