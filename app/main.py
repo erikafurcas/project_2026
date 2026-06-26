@@ -36,9 +36,9 @@ app.mount(
 )
 app.include_router(frontend.router)
 #aggiungo i nuovi router per le API del db
-app.include_router(events.router_events)
-app.include_router(users.router_users)
-app.include_router(registrations.router_registrations)
+app.include_router(events.router)
+app.include_router(users.router)
+app.include_router(registrations.router)
 
 if __name__ == "__main__":
     import uvicorn

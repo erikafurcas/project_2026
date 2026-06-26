@@ -6,16 +6,16 @@ from app.models.user import User
 from app.models.registration import Registration
 
 #inizializzazione
-router_users = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router_users.get("/", response_model=List[User])
+@router.get("/", response_model=List[User])
 def get_users(session: Session = Depends(get_session)):
     """Restituisce la lista di tutti gli utenti."""
     return session.exec(select(User)).all()
 
 
-@router_users.post("/", response_model=User, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=User, status_code=status.HTTP_201_CREATED)
 def create_user(user: User, session: Session = Depends(get_session)):
     """Crea un nuovo utente. Ritorna errore 400 se lo username esiste già."""
     existing_user = session.get(User, user.username)
@@ -27,7 +27,7 @@ def create_user(user: User, session: Session = Depends(get_session)):
     return user
 
 
-@router_users.get("/{username}", response_model=User)
+@router.get("/{username}", response_model=User)
 def get_user(username: str, session: Session = Depends(get_session)):
     """Restituisce l'utente cercato."""
     user = session.get(User, username)
@@ -37,7 +37,7 @@ def get_user(username: str, session: Session = Depends(get_session)):
 
 
 # API Opzionali
-@router_users.delete("/", status_code=status.HTTP_200_OK)
+@router.delete("/", status_code=status.HTTP_200_OK)
 def delete_all_users(session: Session = Depends(get_session)):
     """Elimina tutti gli utenti e svuota le registrazioni per evitare errori di vincolo."""
     # Svuotiamo prima le registrazioni
@@ -52,7 +52,7 @@ def delete_all_users(session: Session = Depends(get_session)):
     session.commit()
     return {"Tutti gli utenti e le registrazioni associate sono stati eliminati"}
 
-@router_users.delete("/{username}", status_code=status.HTTP_200_OK)
+@router.delete("/{username}", status_code=status.HTTP_200_OK)
 def delete_user(username: str, session: Session = Depends(get_session)):
     """Elimina l'utente indicato ed effettua il cascade sulle registrazioni."""
     user = session.get(User, username)

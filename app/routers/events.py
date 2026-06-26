@@ -8,16 +8,16 @@ from app.models.registration import Registration
 from datetime import datetime
 
 # Creiamo il router specifico per ogni evento
-router_events = APIRouter(prefix="/events", tags=["events"])
+router = APIRouter(prefix="/events", tags=["events"])
 
 
-@router_events.get("/", response_model=List[Event])
+@router.get("/", response_model=List[Event])
 def get_events(session: Session = Depends(get_session)):
     """Restituisce la lista di tutti gli eventi esistenti."""
     return session.exec(select(Event)).all()
 
 
-@router_events.post("/", response_model=Event, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=Event, status_code=status.HTTP_201_CREATED)
 def create_event(event: Event, session: Session = Depends(get_session)):
     """Crea un nuovo evento."""
     if isinstance(event.date, str): #mi serve per convertire il formato data
@@ -28,7 +28,7 @@ def create_event(event: Event, session: Session = Depends(get_session)):
     return event
 
 
-@router_events.get("/{id}", response_model=Event)
+@router.get("/{id}", response_model=Event)
 def get_event(id: int, session: Session = Depends(get_session)):
     """Restituisce l'evento con l'id indicato."""
     event = session.get(Event, id)
@@ -37,7 +37,7 @@ def get_event(id: int, session: Session = Depends(get_session)):
     return event
 
 
-@router_events.put("/{id}", response_model=Event)
+@router.put("/{id}", response_model=Event)
 def update_event(id: int, updated_event: Event, session: Session = Depends(get_session)):
     """Aggiorna un evento esistente."""
     if isinstance(event.date, str):     #mi serve per convertire il formato data
@@ -57,7 +57,7 @@ def update_event(id: int, updated_event: Event, session: Session = Depends(get_s
     return db_event
 
 
-@router_events.post("/{id}/register", status_code=status.HTTP_201_CREATED)
+@router.post("/{id}/register", status_code=status.HTTP_201_CREATED)
 def register_to_event(id: int, user_data: User, session: Session = Depends(get_session)):
     """Registra un utente a un evento. Se l'utente non esiste, lo crea."""
     event = session.get(Event, id)
@@ -85,7 +85,7 @@ def register_to_event(id: int, user_data: User, session: Session = Depends(get_s
 
 # API Opzionali
 
-@router_events.delete("/", status_code=status.HTTP_200_OK)
+@router.delete("/", status_code=status.HTTP_200_OK)
 def delete_all_events(session: Session = Depends(get_session)):
     """Elimina tutti gli eventi e le relative registrazioni."""
     # Svuotiamo prima le registrazioni per evitare conflitti
@@ -102,7 +102,7 @@ def delete_all_events(session: Session = Depends(get_session)):
     return {"Tutti gli eventi e le registrazioni associate sono stati eliminati"}
 
 
-@router_events.delete("/{id}", status_code=status.HTTP_200_OK)
+@router.delete("/{id}", status_code=status.HTTP_200_OK)
 def delete_event(id: int, session: Session = Depends(get_session)):
     """Elimina l'evento indicato ed esegue il cascade sulle registrazioni."""
     event = session.get(Event, id)
