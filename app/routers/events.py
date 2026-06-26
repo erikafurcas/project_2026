@@ -7,7 +7,7 @@ from app.models.user import User
 from app.models.registration import Registration
 from datetime import datetime
 
-# Creiamo il router specifico per gli eventi
+# Creiamo il router specifico per ogni evento
 router_events = APIRouter(prefix="/events", tags=["events"])
 
 
