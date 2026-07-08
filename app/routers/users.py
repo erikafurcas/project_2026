@@ -11,7 +11,7 @@ router = APIRouter(
     tags=["users"]
 )
 
-@router.get("", response_model=List[User])
+@router.get("", response_model=List[User], status_code=status.HTTP_200_OK)
 def get_users(session: Session = Depends(get_session)):
     """
     Restituisce la lista di tutti gli utenti esistenti.
@@ -26,7 +26,7 @@ def create_user(user: User, session: Session = Depends(get_session)):
     Crea un nuovo utente.
     Se esiste già un utente con lo stesso username, restituisce un errore 400.
     """
-    # Controllo per evitare duplicati (come richiesto dalle specifiche)
+    # Controllo per evitare duplicati (richiesto dalle specifiche)
     existing_user = session.get(User, user.username)
     if existing_user:
         raise HTTPException(status_code=400, detail="Username già esistente")
@@ -36,7 +36,7 @@ def create_user(user: User, session: Session = Depends(get_session)):
     session.refresh(user)
     return user
 
-@router.get("/{username}", response_model=User)
+@router.get("/{username}", response_model=User, status_code=status.HTTP_200_OK)
 def get_user_by_username(username: str, session: Session = Depends(get_session)):
     """
     Restituisce l'utente con lo username indicato.
@@ -75,7 +75,6 @@ def delete_user_by_username(username: str, session: Session = Depends(get_sessio
         raise HTTPException(status_code=404, detail="Utente non trovato")
         
     # Eliminazione in cascata manuale delle registrazioni associate a questo utente
-    # Nota: Usiamo le virgolette '{username}' perché è una stringa nel database
     session.execute(f"DELETE FROM registration WHERE username = '{username}'")
     
     # Ora possiamo eliminare l'utente in sicurezza
