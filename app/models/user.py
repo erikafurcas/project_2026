@@ -11,6 +11,6 @@ class UserCreate(BaseModel):
 
 # Modello per la Tabella del Database
 class User(SQLModel, table=True):
-    username: str = Field(primary_key=True)
+    username: str = Field(primary_key=True, index=True)
     name: str
     email: str
