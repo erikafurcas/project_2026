@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select, text
 from typing import List
+from pydantic import ValidationError
 
 # Import dei modelli e della sessione del database
-from app.models.user import User
+from app.models.user import User, UserCreate
 from app.data.db import get_session
 
 router = APIRouter(
@@ -26,8 +27,18 @@ def create_user(user: User, session: Session = Depends(get_session)):
     Crea un nuovo utente.
     Se esiste già un utente con lo stesso username, restituisce un errore 400.
     """
+    # Forziamo la validazione rigida usando UserCreate per catturare i campi mancanti (come 'name')
+    try:
+        UserCreate(**user.model_dump())
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=e.errors()
+        )
     # Validazione manuale del tipo per forzare l'errore 422 richiesto dal test pytest
     # impedendo che interi vengano convertiti silenziosamente in stringhe
+
+    
     if user and hasattr(user, "username") and user.username is not None:
         if not isinstance(user.username, str) or isinstance(user.username, bool):
             raise HTTPException(
