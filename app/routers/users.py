@@ -28,7 +28,7 @@ def create_user(user: User, session: Session = Depends(get_session)):
     """
     # Validazione manuale del tipo per forzare l'errore 422 richiesto dal test pytest
     # impedendo che interi vengano convertiti silenziosamente in stringhe
-    if user and hasattr(user, "username"):
+    if user and hasattr(user, "username") and user.username is not None:
         if not isinstance(user.username, str) or isinstance(user.username, bool):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, 
